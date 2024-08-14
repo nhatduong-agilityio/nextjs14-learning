@@ -179,23 +179,16 @@ export async function fetchInvoicesPages(query: string) {
 
 export async function fetchInvoiceById(id: string) {
   try {
-    const data = await sql<InvoiceForm>`
-      SELECT
-        invoices.id,
-        invoices.customer_id,
-        invoices.amount,
-        invoices.status
-      FROM invoices
-      WHERE invoices.id = ${id};
-    `;
+    const invoice = invoices
+      .map(({ status, customer_id, amount }) => ({
+        id: customer_id,
+        customer_id,
+        status: status as "pending" | "paid",
+        amount: amount / 100,
+      }))
+      .find((invoice) => invoice.customer_id === id);
 
-    const invoice = data.rows.map((invoice) => ({
-      ...invoice,
-      // Convert amount from cents to dollars
-      amount: invoice.amount / 100,
-    }));
-
-    return invoice[0];
+    return invoice || ({} as InvoiceForm);
   } catch (error) {
     console.error("Database Error:", error);
     throw new Error("Failed to fetch invoice.");
@@ -204,16 +197,11 @@ export async function fetchInvoiceById(id: string) {
 
 export async function fetchCustomers() {
   try {
-    const data = await sql<CustomerField>`
-      SELECT
-        id,
-        name
-      FROM customers
-      ORDER BY name ASC
-    `;
+    const filteredAndSortedCustomers = customers
+      .filter((customer) => customer.name) // Example filter: only customers with names
+      .sort((a, b) => a.name.localeCompare(b.name));
 
-    const customers = data.rows;
-    return customers;
+    return filteredAndSortedCustomers;
   } catch (err) {
     console.error("Database Error:", err);
     throw new Error("Failed to fetch all customers.");
