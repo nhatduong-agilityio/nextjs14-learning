@@ -15,19 +15,25 @@ const FormSchema = z.object({
 const CreateInvoice = FormSchema.omit({ id: true, date: true });
 
 export async function createInvoice(formData: FormData) {
-  //   const { customerId, amount, status } = CreateInvoice.parse({
-  //     customerId: formData.get("customerId"),
-  //     amount: formData.get("amount"),
-  //     status: formData.get("status"),
-  //   });
+  const { customerId, amount, status } = CreateInvoice.parse({
+    customerId: formData.get("customerId"),
+    amount: formData.get("amount"),
+    status: formData.get("status"),
+  });
 
-  //   const amountInCents = amount * 100;
+  const amountInCents = amount * 100;
   const date = new Date().toISOString().split("T")[0];
 
-  console.log(`${formData}`);
+  try {
+    await console.log(formData);
+  } catch (error) {
+    return {
+      message: "Database Error: Failed to Create Invoice.",
+    };
+  }
 
-  //   revalidatePath("/dashboard/invoices");
-  //   redirect("/dashboard/invoices");
+  revalidatePath("/dashboard/invoices");
+  redirect("/dashboard/invoices");
 }
 
 // Use Zod to update the expected types
@@ -42,14 +48,23 @@ export async function updateInvoice(id: string, formData: FormData) {
 
   const amountInCents = amount * 100;
 
-  console.log(`${customerId}, amount = ${amountInCents}, status = ${status}`);
+  try {
+    await console.log(formData);
+  } catch (error) {
+    return {
+      message: "Database Error: Failed to Create Invoice.",
+    };
+  }
 
   revalidatePath("/dashboard/invoices");
   redirect("/dashboard/invoices");
 }
 
 export async function deleteInvoice(id: string) {
-  console.log(`${id}`);
-
-  revalidatePath("/dashboard/invoices");
+  try {
+    await console.log(id);
+    return { message: "Deleted Invoice." };
+  } catch (error) {
+    return { message: "Database Error: Failed to Delete Invoice." };
+  }
 }
