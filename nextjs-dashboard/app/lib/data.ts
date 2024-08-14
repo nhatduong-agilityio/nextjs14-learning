@@ -116,31 +116,35 @@ export async function fetchFilteredInvoices(
   query: string,
   currentPage: number
 ) {
-  const offset = (currentPage - 1) * ITEMS_PER_PAGE;
-
   try {
-    const invoices = await sql<InvoicesTable>`
-      SELECT
-        invoices.id,
-        invoices.amount,
-        invoices.date,
-        invoices.status,
-        customers.name,
-        customers.email,
-        customers.image_url
-      FROM invoices
-      JOIN customers ON invoices.customer_id = customers.id
-      WHERE
-        customers.name ILIKE ${`%${query}%`} OR
-        customers.email ILIKE ${`%${query}%`} OR
-        invoices.amount::text ILIKE ${`%${query}%`} OR
-        invoices.date::text ILIKE ${`%${query}%`} OR
-        invoices.status ILIKE ${`%${query}%`}
-      ORDER BY invoices.date DESC
-      LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}
-    `;
+    const lowerQuery = query.toLowerCase();
 
-    return invoices.rows;
+    // Join invoices with customers
+    const joinedInvoices = invoices.map((invoice) => {
+      const customer = customers.find((c) => c.id === invoice.customer_id);
+      return { ...invoice, customer };
+    });
+
+    // Filter
+    const filteredInvoices = joinedInvoices.filter(
+      (invoice) =>
+        invoice.customer?.name.toLowerCase().includes(lowerQuery) ||
+        invoice.customer?.email.toLowerCase().includes(lowerQuery) ||
+        invoice.amount.toString().includes(lowerQuery) ||
+        invoice.date.includes(lowerQuery) ||
+        invoice.status.toLowerCase().includes(lowerQuery)
+    );
+
+    // Sort by date descending
+    const sortedInvoices = filteredInvoices.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
+    // Paginate
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+
+    return sortedInvoices.slice(startIndex, endIndex);
   } catch (error) {
     console.error("Database Error:", error);
     throw new Error("Failed to fetch invoices.");
@@ -149,18 +153,23 @@ export async function fetchFilteredInvoices(
 
 export async function fetchInvoicesPages(query: string) {
   try {
-    const count = await sql`SELECT COUNT(*)
-    FROM invoices
-    JOIN customers ON invoices.customer_id = customers.id
-    WHERE
-      customers.name ILIKE ${`%${query}%`} OR
-      customers.email ILIKE ${`%${query}%`} OR
-      invoices.amount::text ILIKE ${`%${query}%`} OR
-      invoices.date::text ILIKE ${`%${query}%`} OR
-      invoices.status ILIKE ${`%${query}%`}
-  `;
+    const lowerQuery = query.toLowerCase();
 
-    const totalPages = Math.ceil(Number(count.rows[0].count) / ITEMS_PER_PAGE);
+    const matchedData = invoices.filter((invoice) => {
+      const customer = customers.find((c) => c.id === invoice.customer_id);
+
+      if (!customer) return false;
+
+      return (
+        customer.name.toLowerCase().includes(lowerQuery) ||
+        customer.email.toLowerCase().includes(lowerQuery) ||
+        invoice.amount.toString().includes(lowerQuery) ||
+        invoice.date.toLowerCase().includes(lowerQuery) ||
+        invoice.status.toLowerCase().includes(lowerQuery)
+      );
+    });
+
+    const totalPages = Math.ceil(Number(matchedData.length) / ITEMS_PER_PAGE);
     return totalPages;
   } catch (error) {
     console.error("Database Error:", error);
