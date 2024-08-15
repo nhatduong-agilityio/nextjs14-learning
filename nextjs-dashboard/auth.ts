@@ -4,12 +4,12 @@ import { authConfig } from './auth.config'
 import { z } from 'zod'
 import type { User } from '@/app/lib/definitions'
 import bcrypt from 'bcrypt'
-import { users } from './app/lib/placeholder-data'
 
-function getUser(email: string): User | undefined {
+async function getUser(email: string): Promise<User | undefined> {
   try {
-    const user = users.find((u) => u.email === email)
-    return user
+    const user = await fetch(`${process.env.API_ENDPOINT}users?email=${email}`)
+
+    return await user.json()
   } catch (error) {
     console.error('Failed to fetch user:', error)
     throw new Error('Failed to fetch user.')
@@ -25,18 +25,25 @@ export const { auth, signIn, signOut } = NextAuth({
           .object({ email: z.string().email(), password: z.string().min(6) })
           .safeParse(credentials)
 
-        if (parsedCredentials.success) {
-          const { email, password } = parsedCredentials.data
-          const user = getUser(email)
+        // if (parsedCredentials.success) {
+        //   const { email, password } = parsedCredentials.data
+        //   const user = await getUser(email)
 
-          if (!user) return null
-          const passwordsMatch = await bcrypt.compare(password, user.password)
+        //   console.log('user', user)
 
-          if (passwordsMatch) return user
-        }
+        //   if (!user) return null
+        //   const passwordsMatch = await bcrypt.compare(password, user.password)
 
-        console.log('Invalid credentials')
-        return null
+        //   if (passwordsMatch) return user
+        // }
+
+        if (!parsedCredentials.success) return null
+
+        const { email } = parsedCredentials.data
+
+        const user = await getUser(email)
+
+        return user ? user : null
       },
     }),
   ],
